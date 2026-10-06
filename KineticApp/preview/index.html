@@ -1,0 +1,475 @@
+<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head><body>
+<title>Kinetic Preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: watch device on the left as the "live" object, iPhone-style dashboard on the right; stacks on phones. Single deliberate dark look, like watchOS. */
+:root {
+  color-scheme: dark;
+  --bg: #0b0d10;
+  --panel: #14171c;
+  --line: #242a32;
+  --fg: #eef1f4;
+  --muted: #8b95a1;
+  --charge-hi: #34d982;
+  --charge-mid: #ffcc33;
+  --charge-lo: #ff4d4d;
+  --load: #408cff;
+  --move: #ff9426;
+  --sleep: #9e7aff;
+  --display: "Barlow Condensed", "Arial Narrow", sans-serif;
+  --body: "IBM Plex Sans", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, monospace;
+}
+* { box-sizing: border-box; }
+html, body { background: var(--bg); color: var(--fg); }
+body { font-family: var(--body); font-size: 14px; line-height: 1.5; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 48px; display: grid; gap: 24px; }
+header h1 { font-family: var(--display); font-weight: 700; font-size: 2.4rem; letter-spacing: .02em; margin: 0; line-height: 1; }
+header p { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.badge { display: inline-block; font-family: var(--mono); font-size: 11px; color: var(--move); border: 1px solid color-mix(in srgb, var(--move) 45%, transparent); border-radius: 99px; padding: 2px 8px; margin-bottom: 10px; letter-spacing: .04em; text-transform: uppercase; }
+.grid { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 24px; align-items: start; }
+@media (max-width: 760px) { .grid { grid-template-columns: minmax(0, 1fr); } }
+
+/* Watch */
+.watch-col { display: grid; gap: 14px; justify-items: center; position: sticky; top: calc(env(safe-area-inset-top, 0px) + 16px); }
+@media (max-width: 760px) { .watch-col { position: static; } }
+.watch { width: 228px; height: 276px; border-radius: 58px; background: #000; border: 10px solid #2a2e35; box-shadow: 0 0 0 2px #3a3f47, 0 20px 50px rgba(0,0,0,.6); position: relative; overflow: hidden; }
+.crown { position: absolute; right: -22px; top: 70px; width: 12px; height: 46px; border-radius: 6px; background: #3a3f47; }
+.screen { position: absolute; inset: 0; padding: 18px 16px 14px; display: flex; flex-direction: column; gap: 6px; }
+.screen h2 { font-family: var(--display); font-size: 15px; font-weight: 600; margin: 0; color: var(--move); letter-spacing: .02em; display: flex; justify-content: space-between; }
+.screen h2 span { color: var(--muted); font-family: var(--mono); font-size: 11px; font-weight: 500; }
+.rings { display: flex; justify-content: space-around; }
+.ring { position: relative; display: grid; place-items: center; }
+.ring svg { display: block; }
+.ring .val { position: absolute; text-align: center; line-height: 1; }
+.ring .val b { font-family: var(--display); font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; display: block; }
+.ring .val small { font-size: 8px; letter-spacing: .1em; color: var(--muted); font-weight: 600; }
+.w-line { font-size: 11px; line-height: 1.35; text-align: center; }
+.w-sub { font-size: 10px; text-align: center; color: var(--muted); }
+.w-list { display: grid; gap: 4px; overflow: auto; }
+.w-btn { background: #1e2228; color: var(--fg); border: 0; border-radius: 12px; padding: 7px 10px; font: 500 12px var(--body); text-align: left; cursor: pointer; }
+.w-btn:hover, .w-btn:focus-visible { background: #2a3038; outline: none; }
+.w-time { font-family: var(--display); font-size: 30px; color: var(--charge-mid); font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums; }
+.w-hr { display: flex; align-items: baseline; gap: 6px; }
+.w-hr b { font-family: var(--display); font-size: 34px; line-height: 1; font-variant-numeric: tabular-nums; }
+.zone-pill { margin-left: auto; font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+.bar { height: 6px; border-radius: 3px; background: #1e2228; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--load); transition: width .4s; }
+.w-row { display: flex; justify-content: space-between; font-size: 10.5px; font-variant-numeric: tabular-nums; }
+.w-ctrl { display: flex; gap: 6px; margin-top: auto; }
+.w-ctrl button { flex: 1; border: 0; border-radius: 99px; padding: 6px; font: 600 12px var(--body); cursor: pointer; }
+.pages { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.pages button { background: var(--panel); color: var(--muted); border: 1px solid var(--line); border-radius: 99px; padding: 5px 11px; font: 500 12px var(--body); cursor: pointer; }
+.pages button[aria-pressed="true"] { color: var(--fg); border-color: var(--move); }
+.pages button:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--move); outline-offset: 2px; }
+.notif { position: absolute; inset: 0; background: rgba(0,0,0,.92); padding: 26px 18px; display: flex; flex-direction: column; gap: 8px; animation: slide .35s ease-out; }
+.notif b { font-family: var(--display); font-size: 20px; color: var(--move); }
+.notif p { margin: 0; font-size: 12px; }
+.notif button { margin-top: auto; }
+@keyframes slide { from { transform: translateY(30%); opacity: .4; } }
+@media (prefers-reduced-motion: reduce) { .notif { animation: none; } .bar i { transition: none; } }
+.hint { font-size: 12px; color: var(--muted); text-align: center; max-width: 280px; margin: 0; }
+
+/* Dashboard */
+.dash { display: grid; gap: 16px; min-width: 0; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 16px; min-width: 0; }
+.panel h3 { margin: 0 0 12px; font: 600 11px var(--body); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.panel h3 em { font-style: normal; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.big-rings { display: flex; justify-content: space-around; flex-wrap: wrap; gap: 12px; }
+.big-rings .ring .val b { font-size: 34px; }
+.big-rings .ring .val small { font-size: 10px; }
+.controls { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px 20px; }
+.ctl label { display: flex; justify-content: space-between; font-size: 12.5px; }
+.ctl label output { font-family: var(--mono); font-size: 12px; color: var(--fg); }
+.ctl input[type=range] { width: 100%; accent-color: var(--move); }
+.ctl .note { font-size: 11px; color: var(--muted); }
+.coach { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.coach li { padding-left: 16px; position: relative; }
+.coach li::before { content: ""; position: absolute; left: 0; top: .55em; width: 7px; height: 7px; border-radius: 2px; background: var(--move); transform: rotate(45deg); }
+.comp { display: grid; grid-template-columns: minmax(0, 1fr) 120px 32px; gap: 10px; align-items: center; font-size: 13px; }
+.comp + .comp { margin-top: 8px; }
+.comp .bar { height: 8px; }
+.comp span:last-child { text-align: right; font-family: var(--mono); font-size: 12px; }
+.hours { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 3px; align-items: end; height: 96px; }
+.hours button { border: 0; border-radius: 3px 3px 1px 1px; cursor: pointer; padding: 0; min-height: 4px; position: relative; }
+.hours-lbl { display: grid; grid-template-columns: repeat(16, minmax(0, 1fr)); gap: 3px; font-family: var(--mono); font-size: 9px; color: var(--muted); text-align: center; margin-top: 4px; }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 12px; margin-bottom: 14px; }
+.stats div b { display: block; font-family: var(--display); font-size: 24px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.stats div span { font-size: 11px; color: var(--muted); }
+.chart-wrap { overflow-x: auto; }
+.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 6px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.zones { display: grid; gap: 6px; }
+.zones > div { display: grid; grid-template-columns: 76px minmax(0, 1fr) 44px; gap: 8px; align-items: center; font-size: 12px; }
+.zones > div > span:last-child { text-align: right; font-family: var(--mono); }
+.footnote { font-size: 12px; color: var(--muted); max-width: 70ch; margin: 0; }
+</style>
+
+<div class="wrap">
+  <header>
+    <span class="badge">Interactive preview · sample data</span>
+    <h1>KINETIC</h1>
+    <p>Try the watch on the left and change last night's numbers on the right. Everything runs on made-up sample data with the same scoring rules as the real app. Pretend it's 3:00 pm.</p>
+  </header>
+
+  <div class="grid">
+    <div class="watch-col">
+      <div class="watch" aria-label="Apple Watch preview">
+        <div class="crown"></div>
+        <div class="screen" id="screen"></div>
+      </div>
+      <div class="pages" role="group" aria-label="Watch screens">
+        <button data-page="today" aria-pressed="true">Today</button>
+        <button data-page="track" aria-pressed="false">Track</button>
+        <button data-page="move" aria-pressed="false">Movement</button>
+      </div>
+      <div class="pages">
+        <button id="nudgeBtn">Run the 2:50 pm move check</button>
+      </div>
+      <p class="hint" id="hint">On Track, pick an activity to start a fake workout. It runs 30× faster than real time.</p>
+    </div>
+
+    <div class="dash">
+      <section class="panel">
+        <h3>Today <em id="levelTxt"></em></h3>
+        <div class="big-rings" id="bigRings"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Change last night</h3>
+        <div class="controls">
+          <div class="ctl">
+            <label for="hrv">HRV <output id="hrvOut"></output></label>
+            <input type="range" id="hrv" min="20" max="100" value="58">
+            <div class="note" id="hrvNote"></div>
+          </div>
+          <div class="ctl">
+            <label for="rhr">Resting heart rate <output id="rhrOut"></output></label>
+            <input type="range" id="rhr" min="40" max="80" value="54">
+            <div class="note" id="rhrNote"></div>
+          </div>
+          <div class="ctl">
+            <label for="sleep">Sleep <output id="sleepOut"></output></label>
+            <input type="range" id="sleep" min="3" max="10" step="0.25" value="7.25">
+            <div class="note" id="sleepNote"></div>
+          </div>
+          <div class="ctl">
+            <label for="resp">Breathing rate <output id="respOut"></output></label>
+            <input type="range" id="resp" min="11" max="20" step="0.5" value="14">
+            <div class="note">Normal for you: about 14 breaths/min</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h3>Coach</h3>
+        <ul class="coach" id="coach"></ul>
+      </section>
+
+      <section class="panel">
+        <h3>Charge breakdown</h3>
+        <div id="comps"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Movement <em>Tap an hour to change its steps</em></h3>
+        <div class="stats" id="moveStats"></div>
+        <div class="hours" id="hours"></div>
+        <div class="hours-lbl" id="hoursLbl"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Heart-rate zones today</h3>
+        <div class="zones" id="zones"></div>
+      </section>
+
+      <section class="panel">
+        <h3>Last 14 days</h3>
+        <div class="chart-wrap"><svg id="trend" viewBox="0 0 640 220" width="100%" role="img" aria-label="Charge, Load and Movement over 14 days"></svg></div>
+        <div class="legend"><span><i style="background:var(--charge-hi)"></i>Charge</span><span><i style="background:var(--load)"></i>Load</span><span><i style="background:var(--move)"></i>Movement</span></div>
+      </section>
+
+      <p class="footnote">This preview can't read your watch. To try it with your real data, build the app in Xcode on a Mac and install it on your iPhone and Apple Watch.</p>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  // ---- Scoring rules (same as KineticCore) ----
+  const P = { age: 30, stepGoal: 8000, sleepBase: 8, wake: 7, bed: 23 };
+  const MAXHR = 208 - 0.7 * P.age;
+  const NOW_HOUR = 15;
+  const AWAKE = Array.from({ length: P.bed - P.wake }, (_, i) => P.wake + i);
+  const ZONES = [
+    { name: "Rest", f: 0, w: 0, c: "#6b7380" }, { name: "Easy", f: .5, w: 1, c: "#2dd4bf" },
+    { name: "Endurance", f: .6, w: 2, c: "#34d982" }, { name: "Tempo", f: .7, w: 3, c: "#ffd43b" },
+    { name: "Threshold", f: .8, w: 4, c: "#ff9426" }, { name: "Max", f: .9, w: 5, c: "#ff4d4d" }
+  ];
+  const zoneIdx = (bpm, rhr) => {
+    const f = Math.min(Math.max((bpm - rhr) / (MAXHR - rhr), 0), 1);
+    let z = 0; ZONES.forEach((zz, i) => { if (f >= zz.f) z = i; }); return z;
+  };
+  const loadFromTrimp = t => t > 0 ? 100 * (1 - Math.exp(-t / 150)) : 0;
+  const zScore = z => 100 / (1 + Math.exp(-1.2 * z));
+  const level = s => s < 34 ? "low" : s < 67 ? "moderate" : "high";
+  const levelColor = s => ({ low: "var(--charge-lo)", moderate: "var(--charge-mid)", high: "var(--charge-hi)" })[level(s)];
+  const target = s => ({ high: [55, 80], moderate: [35, 60], low: [10, 35] })[level(s)];
+
+  function sleepNeed(prevDebt, prevLoad) {
+    return P.sleepBase + Math.min(Math.max(prevDebt, 0), 1.5) * .5 + Math.min(prevLoad, 100) / 100 * .75;
+  }
+  function charge(d, base, sleepPerf, eff) {
+    const logSD = Math.max(base.hrvSD / base.hrvMean, .08);
+    const hrvC = zScore((Math.log(d.hrv) - Math.log(base.hrvMean)) / logSD);
+    const rhrC = zScore(-(d.rhr - base.rhrMean) / Math.max(base.rhrSD, 2));
+    const effF = Math.min(1, .7 + .3 * (eff / .85));
+    const sleepC = 100 * sleepPerf * effF;
+    const respWarn = d.resp - 14.1 > 1;
+    let s = (hrvC * .5 + rhrC * .2 + sleepC * .3);
+    if (respWarn) s *= .85;
+    return { score: Math.min(Math.max(s, 0), 100), hrvC, rhrC, sleepC, respWarn };
+  }
+  function movement(steps, upTo) {
+    const hrs = upTo >= 24 ? AWAKE : AWAKE.filter(h => h < upTo);
+    let active = 0, streak = 0, longest = 0;
+    hrs.forEach(h => { if (steps[h] >= 250) { active++; streak = 0; } else { streak++; longest = Math.max(longest, streak); } });
+    const total = steps.reduce((a, b) => a + b, 0);
+    const vol = Math.min(total / P.stepGoal, 1);
+    const spread = hrs.length ? active / hrs.length : 1;
+    const score = 100 * (.45 * vol + .35 * spread + .2 * (1 - Math.min(longest, 6) / 6));
+    return { score, total, active, elapsed: hrs.length, longest };
+  }
+
+  // ---- Sample history (deterministic) ----
+  let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const history = Array.from({ length: 28 }, () => ({
+    hrv: 52 + (rnd() - .5) * 14, rhr: 55 + (rnd() - .5) * 5, sleep: 6.4 + rnd() * 2.1,
+    trimp: 30 + rnd() * 210,
+    steps: Array.from({ length: 24 }, (_, h) => AWAKE.includes(h) ? Math.round(rnd() < .65 ? 200 + rnd() * 900 : rnd() * 150) : 0)
+  }));
+  const mean = a => a.reduce((x, y) => x + y, 0) / a.length;
+  const sd = a => { const m = mean(a); return Math.sqrt(a.reduce((x, y) => x + (y - m) ** 2, 0) / (a.length - 1)); };
+  const base = { hrvMean: mean(history.map(d => d.hrv)), hrvSD: sd(history.map(d => d.hrv)), rhrMean: mean(history.map(d => d.rhr)), rhrSD: sd(history.map(d => d.rhr)) };
+  const yesterday = history[0];
+  const yLoad = loadFromTrimp(yesterday.trimp);
+  const yDebt = Math.max(P.sleepBase - yesterday.sleep, 0);
+
+  const trendDays = history.slice(0, 13).reverse().map((d, i, arr) => {
+    const need = P.sleepBase + .3;
+    const c = charge({ hrv: d.hrv, rhr: d.rhr, resp: 14 }, base, Math.min(d.sleep / need, 1), .9);
+    return { charge: c.score, load: loadFromTrimp(d.trimp), move: movement(d.steps, 24).score };
+  });
+
+  // ---- Today state ----
+  const todaySteps = Array(24).fill(0);
+  [[7, 420], [8, 1350], [9, 180], [10, 90], [11, 310], [12, 1600], [13, 60], [14, 40]].forEach(([h, s]) => todaySteps[h] = s);
+  const morningHR = [];
+  for (let m = 0; m < 30; m++) morningHR.push(118 + Math.sin(m / 4) * 6); // a short brisk walk
+  let todayTrimpBase = 0;
+  const zoneMin = Array(6).fill(0);
+  zoneMin[0] = 7 * 60;
+  morningHR.forEach(b => { const z = zoneIdx(b, 54); zoneMin[z] += 1; todayTrimpBase += ZONES[z].w; });
+
+  const $ = id => document.getElementById(id);
+  const st = { hrv: 58, rhr: 54, sleep: 7.25, resp: 14, page: "today", workout: null, notif: null };
+
+  function compute() {
+    const need = sleepNeed(yDebt, yLoad);
+    const perf = Math.min(st.sleep / need, 1);
+    const eff = Math.min(st.sleep / (st.sleep + .6), 1);
+    const c = charge(st, base, perf, eff);
+    const sessionTrimp = st.workout ? st.workout.trimp : 0;
+    const load = loadFromTrimp(todayTrimpBase + sessionTrimp + (st.workout?.doneTrimp || 0));
+    const mv = movement(todaySteps, NOW_HOUR);
+    const tgt = target(c.score);
+    const coach = [];
+    if (c.respWarn) coach.push("Breathing rate is higher than usual. Consider an easy day. This can be an early sign of illness.");
+    coach.push({ high: "Fully charged. A good day to push hard.", moderate: "Moderately charged. Train, but keep the intensity in check.", low: "Low charge. Prioritise recovery: walk, stretch, sleep early." }[level(c.score)]);
+    if (load > tgt[1]) coach.push("You've passed today's Load target. Extra effort now will cost tomorrow's Charge.");
+    else if (load < tgt[0]) coach.push(`About ${Math.round(tgt[0] - load)} Load to reach today's target.`);
+    else coach.push("You're in today's Load target zone.");
+    if (mv.longest >= 3) coach.push(`Longest still stretch: ${mv.longest}h. Short walks every hour lift your Movement score.`);
+    const debt = Math.max(need - st.sleep, 0);
+    if (debt >= .75) coach.push(`You're ${Math.round(debt * 60)} min short on sleep. Aim for ${need.toFixed(1)}h tonight.`);
+    return { c, load, mv, tgt, need, perf, coach };
+  }
+
+  function ring(value, color, label, size, stroke, tgt) {
+    const r = (size - stroke) / 2 - (tgt ? stroke * .6 : 0), C = 2 * Math.PI * r, cx = size / 2;
+    const frac = Math.min(value / 100, 1);
+    let band = "";
+    if (tgt) {
+      const rb = r + stroke * .95, Cb = 2 * Math.PI * rb;
+      band = `<circle cx="${cx}" cy="${cx}" r="${rb}" fill="none" stroke="${color}" stroke-opacity=".5" stroke-width="${stroke / 3}" stroke-dasharray="${Cb * (tgt[1] - tgt[0]) / 100} ${Cb}" stroke-dashoffset="${-Cb * tgt[0] / 100}" transform="rotate(-90 ${cx} ${cx})"/>`;
+    }
+    return `<div class="ring"><svg width="${size}" height="${size}" aria-hidden="true">
+      <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${color}" stroke-opacity=".18" stroke-width="${stroke}"/>${band}
+      <circle cx="${cx}" cy="${cx}" r="${r}" fill="none" stroke="${color}" stroke-width="${stroke}" stroke-linecap="round" stroke-dasharray="${C * frac} ${C}" transform="rotate(-90 ${cx} ${cx})"/>
+      </svg><div class="val"><b>${Math.round(value)}</b><small>${label.toUpperCase()}</small></div></div>`;
+  }
+
+  function renderWatch(r) {
+    const s = $("screen");
+    let html = "";
+    if (st.workout && !st.workout.ended) {
+      const w = st.workout, z = ZONES[w.zone];
+      const t = w.secs, mm = String(Math.floor(t / 60)).padStart(2, "0"), ss = String(t % 60).padStart(2, "0");
+      html = `<h2>${w.name}<span>${w.paused ? "PAUSED" : "LIVE"}</span></h2>
+        <div class="w-time">${mm}:${ss}</div>
+        <div class="w-hr"><b>${Math.round(w.hr)}</b><span style="color:var(--charge-lo)">♥</span>
+          <span class="zone-pill" style="background:color-mix(in srgb, ${z.c} 30%, transparent)">${z.name}</span></div>
+        <div class="w-row"><span>Session Load</span><span>${Math.round(loadFromTrimp(w.trimp))}</span></div>
+        <div class="bar"><i style="width:${loadFromTrimp(w.trimp)}%"></i></div>
+        <div class="w-row" style="color:var(--move)"><span>${w.motion}</span><span>${Math.round(w.cadence)} spm</span></div>
+        <div class="w-ctrl"><button id="wPause" style="background:#3a3410;color:var(--charge-mid)">${w.paused ? "Resume" : "Pause"}</button>
+        <button id="wEnd" style="background:#3a1616;color:var(--charge-lo)">End</button></div>`;
+    } else if (st.workout && st.workout.ended) {
+      const w = st.workout;
+      const rows = ZONES.map((z, i) => w.zm[i] ? `<div class="w-row"><span style="color:${z.c}">${z.name}</span><span>${Math.round(w.zm[i] / 60)} min</span></div>` : "").reverse().join("");
+      html = `<h2>Summary<span>${Math.round(w.secs / 60)} min</span></h2>
+        <div class="w-row" style="font-size:13px;color:var(--load)"><b>Session Load</b><b>${Math.round(loadFromTrimp(w.trimp))}</b></div>
+        <div class="w-list">${rows}
+        <div class="w-row" style="color:var(--move)"><span>Moving hard</span><span>${Math.round(w.vig / 60)} min</span></div></div>
+        <div class="w-ctrl"><button id="wDone" style="background:#1e2228;color:var(--fg)">Done</button></div>`;
+    } else if (st.page === "today") {
+      html = `<h2>Kinetic<span>3:00</span></h2>
+        <div class="rings">${ring(r.c.score, levelColor(r.c.score), "Charge", 82, 8)}${ring(r.load, "var(--load)", "Load", 82, 8, r.tgt)}</div>
+        <div class="w-sub" style="color:var(--load)">Target Load ${r.tgt[0]}–${r.tgt[1]}</div>
+        <div class="w-line">${r.coach[0]}</div>
+        <div class="w-sub" style="color:var(--sleep)">${st.sleep.toFixed(1)}h / ${r.need.toFixed(1)}h sleep</div>`;
+    } else if (st.page === "track") {
+      const acts = [["Run", "run"], ["Walk", "walk"], ["Strength", "hard"], ["HIIT", "hiit"], ["Yoga", "easy"]];
+      html = `<h2>Track<span>3:00</span></h2><div class="w-list">${acts.map(([n, k]) => `<button class="w-btn" data-act="${k}">${n}</button>`).join("")}</div>`;
+    } else {
+      const bars = AWAKE.map(h => `<i style="flex:1;height:100%;border-radius:2px;background:${h >= NOW_HOUR ? "#1e2228" : todaySteps[h] >= 250 ? "var(--move)" : "color-mix(in srgb, var(--move) 22%, transparent)"}"></i>`).join("");
+      html = `<h2>Movement<span>3:00</span></h2>
+        <div class="rings">${ring(r.mv.score, "var(--move)", "Move", 78, 8)}</div>
+        <div class="w-line"><b>${r.mv.total.toLocaleString()} steps</b></div>
+        <div class="w-sub">Moved in ${r.mv.active} of ${r.mv.elapsed} hours</div>
+        <div style="display:flex;gap:1.5px;height:16px">${bars}</div>`;
+    }
+    if (st.notif) {
+      html += `<div class="notif" role="alert"><b>${st.notif.title}</b><p>${st.notif.body}</p><button class="w-btn" id="notifOk" style="text-align:center">OK</button></div>`;
+    }
+    s.innerHTML = html;
+  }
+
+  function renderDash(r) {
+    $("levelTxt").textContent = `${level(r.c.score)} charge`;
+    $("levelTxt").style.color = levelColor(r.c.score);
+    $("bigRings").innerHTML = ring(r.c.score, levelColor(r.c.score), "Charge", 128, 12) + ring(r.load, "var(--load)", "Load", 128, 12, r.tgt) + ring(r.mv.score, "var(--move)", "Movement", 128, 12);
+    $("hrvOut").textContent = `${st.hrv} ms`;
+    $("hrvNote").textContent = `Your normal: ${Math.round(base.hrvMean)} ms. Higher is better.`;
+    $("rhrOut").textContent = `${st.rhr} bpm`;
+    $("rhrNote").textContent = `Your normal: ${Math.round(base.rhrMean)} bpm. Lower is better.`;
+    $("sleepOut").textContent = `${st.sleep.toFixed(2)} h`;
+    $("sleepNote").textContent = `You needed ${r.need.toFixed(1)}h after yesterday's Load of ${Math.round(yLoad)}.`;
+    $("respOut").textContent = `${st.resp} /min`;
+    $("coach").innerHTML = r.coach.map(l => `<li>${l}</li>`).join("");
+    $("comps").innerHTML = [["Heart-rate variability", r.c.hrvC], ["Resting heart rate", r.c.rhrC], ["Sleep", r.c.sleepC]]
+      .map(([n, v]) => `<div class="comp"><span>${n}</span><div class="bar"><i style="width:${v}%;background:${levelColor(v)}"></i></div><span>${Math.round(v)}</span></div>`).join("");
+    $("moveStats").innerHTML = `<div><b>${r.mv.total.toLocaleString()}</b><span>Steps</span></div><div><b>${r.mv.active}/${r.mv.elapsed}</b><span>Hours you moved</span></div><div><b>${r.mv.longest}h</b><span>Longest still</span></div>`;
+    const maxS = 1800;
+    $("hours").innerHTML = AWAKE.map(h => {
+      const fut = h >= NOW_HOUR, v = todaySteps[h];
+      const bg = fut ? "#1a1e24" : v >= 250 ? "var(--move)" : "color-mix(in srgb, var(--move) 25%, transparent)";
+      return `<button data-h="${h}" ${fut ? "disabled" : ""} aria-label="${h}:00, ${v} steps" title="${h}:00 · ${v} steps" style="height:${fut ? 4 : Math.max(v / maxS * 100, 5)}%;background:${bg};cursor:${fut ? "default" : "pointer"}"></button>`;
+    }).join("");
+    $("hoursLbl").innerHTML = AWAKE.map(h => `<span>${h % 3 === 0 ? h : ""}</span>`).join("");
+    const zm = zoneMin.slice();
+    if (st.workout) st.workout.zm.forEach((s, i) => zm[i] += s / 60);
+    const zmax = Math.max(...zm.slice(1), 1);
+    $("zones").innerHTML = ZONES.map((z, i) => `<div><span>${z.name}</span><div class="bar"><i style="width:${i === 0 ? 100 : zm[i] / zmax * 100}%;background:${z.c};opacity:${i === 0 ? .35 : 1}"></i></div><span>${Math.round(zm[i])}m</span></div>`).reverse().join("");
+    renderTrend(r);
+  }
+
+  function renderTrend(r) {
+    const days = trendDays.concat([{ charge: r.c.score, load: r.load, move: r.mv.score }]);
+    const W = 640, H = 220, L = 34, R = 12, T = 12, B = 28;
+    const x = i => L + i * (W - L - R) / (days.length - 1), y = v => T + (100 - v) / 100 * (H - T - B);
+    let g = "";
+    [0, 25, 50, 75, 100].forEach(v => g += `<line x1="${L}" x2="${W - R}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line)"/><text x="${L - 8}" y="${y(v) + 4}" text-anchor="end" font-size="10" fill="var(--muted)" font-family="var(--mono)">${v}</text>`);
+    const bw = (W - L - R) / days.length * .45;
+    days.forEach((d, i) => g += `<rect x="${x(i) - bw / 2}" y="${y(d.move)}" width="${bw}" height="${y(0) - y(d.move)}" rx="2" fill="var(--move)" fill-opacity="${i === days.length - 1 ? .55 : .25}"/>`);
+    const path = k => days.map((d, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(d[k]).toFixed(1)}`).join("");
+    g += `<path d="${path("charge")}" fill="none" stroke="var(--charge-hi)" stroke-width="2.2"/>`;
+    g += `<path d="${path("load")}" fill="none" stroke="var(--load)" stroke-width="2.2"/>`;
+    const last = days.length - 1;
+    g += `<circle cx="${x(last)}" cy="${y(days[last].charge)}" r="4.5" fill="var(--charge-hi)"/><circle cx="${x(last)}" cy="${y(days[last].load)}" r="4.5" fill="var(--load)"/>`;
+    days.forEach((_, i) => { if (i % 2 === 1 || i === last) g += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="10" fill="var(--muted)" font-family="var(--mono)">${i === last ? "Today" : "-" + (last - i) + "d"}</text>`; });
+    $("trend").innerHTML = g;
+  }
+
+  function render() { const r = compute(); renderWatch(r); renderDash(r); }
+
+  // ---- Fake workout ----
+  const PROFILES = {
+    run: { name: "Run", hr: 162, motion: "Vigorous", cad: 166 }, walk: { name: "Walk", hr: 112, motion: "Moderate", cad: 112 },
+    hard: { name: "Strength", hr: 138, motion: "Moderate", cad: 30 }, hiit: { name: "HIIT", hr: 172, motion: "Vigorous", cad: 140 },
+    easy: { name: "Yoga", hr: 92, motion: "Light", cad: 8 }
+  };
+  let timer = null;
+  function startWorkout(k) {
+    const p = PROFILES[k];
+    st.workout = { ...p, key: k, secs: 0, hr: 88, zone: 0, trimp: 0, zm: Array(6).fill(0), cadence: 0, paused: false, ended: false, vig: 0 };
+    clearInterval(timer);
+    timer = setInterval(tick, 1000);
+    $("hint").textContent = "Watch heart rate climb into its zone and Load build. End it to see the summary.";
+    render();
+  }
+  function tick() {
+    const w = st.workout; if (!w || w.paused || w.ended) return;
+    for (let i = 0; i < 30; i++) { // 30 simulated seconds per real second
+      const wobble = w.key === "hiit" ? Math.sin(w.secs / 40) * 18 : (Math.random() - .5) * 4;
+      w.hr += (PROFILES[w.key].hr + wobble - w.hr) * .04;
+      w.zone = zoneIdx(w.hr, st.rhr);
+      w.zm[w.zone] += 1;
+      w.trimp += ZONES[w.zone].w / 60;
+      if (w.motion === "Vigorous") w.vig += 1;
+      w.secs += 1;
+    }
+    w.cadence = PROFILES[w.key].cad + (Math.random() - .5) * 6;
+    render();
+  }
+
+  // ---- Events ----
+  document.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => {
+    st.page = b.dataset.page;
+    document.querySelectorAll("[data-page]").forEach(o => o.setAttribute("aria-pressed", String(o === b)));
+    render();
+  }));
+  ["hrv", "rhr", "sleep", "resp"].forEach(id => $(id).addEventListener("input", e => { st[id] = +e.target.value; render(); }));
+  $("screen").addEventListener("click", e => {
+    const t = e.target.closest("button"); if (!t) return;
+    if (t.dataset.act) startWorkout(t.dataset.act);
+    else if (t.id === "wPause") { st.workout.paused = !st.workout.paused; render(); }
+    else if (t.id === "wEnd") { st.workout.ended = true; clearInterval(timer); render(); }
+    else if (t.id === "wDone") {
+      todayTrimpBase += st.workout.trimp;
+      st.workout.zm.forEach((s, i) => zoneMin[i] += s / 60);
+      st.workout = null; st.page = "today";
+      document.querySelectorAll("[data-page]").forEach(o => o.setAttribute("aria-pressed", String(o.dataset.page === "today")));
+      $("hint").textContent = "The workout's Load is now part of today. Try another, or run the move check.";
+      render();
+    } else if (t.id === "notifOk") { st.notif = null; render(); }
+  });
+  $("hours").addEventListener("click", e => {
+    const b = e.target.closest("button[data-h]"); if (!b || b.disabled) return;
+    const h = +b.dataset.h, v = todaySteps[h];
+    todaySteps[h] = v < 250 ? 600 : v < 1200 ? 1500 : 60;
+    render();
+  });
+  $("nudgeBtn").addEventListener("click", () => {
+    const steps = todaySteps[14];
+    st.notif = steps < 250
+      ? { title: "Time to move", body: `Only ${steps} steps this hour. A ${Math.max(250 - steps, 50)}-step walk keeps your Movement score up.` }
+      : { title: "Nice moving", body: `${steps} steps this hour. No nudge needed. (Tap the 2 pm bar to set it below 250 and try again.)` };
+    render();
+  });
+
+  render();
+})();
+</script>
+</body></html>

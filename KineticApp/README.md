@@ -6,6 +6,23 @@ move during the day**, measures motion straight from the watch's accelerometer, 
 your wrist when you've been still too long. No strap, no subscription. Everything runs on
 your own devices from Apple Health data.
 
+## Screenshots
+
+These come from the interactive browser preview in `preview/index.html`, which uses sample data and the
+same scoring rules as the app. Open it in any browser to try it.
+
+| Today | Live run | Summary | Move-break nudge |
+|---|---|---|---|
+| ![Today](screenshots/watch-today.png) | ![Live run](screenshots/watch-live-run.png) | ![Summary](screenshots/watch-summary.png) | ![Nudge](screenshots/watch-move-nudge.png) |
+
+| Start a session | Movement |
+|---|---|
+| ![Track](screenshots/watch-track.png) | ![Movement](screenshots/watch-movement.png) |
+
+**iPhone dashboard**
+
+<img src="screenshots/dashboard-iphone.png" width="320" alt="iPhone dashboard">
+
 ## The three scores
 
 | Score | WHOOP equivalent | What it measures |
